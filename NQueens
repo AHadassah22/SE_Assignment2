@@ -106,7 +106,7 @@ int main()
             // get end time
             gettimeofday(&end, NULL);
 
-            // calculate runtime
+            // calculate average runtime
             avg_time += (end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0);
         }
 
@@ -115,7 +115,7 @@ int main()
     }
 
   
-    // close file
+    // closing the file
     fclose(fp);
 
     return 0;
