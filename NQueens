@@ -1,0 +1,122 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+#include <sys/time.h>
+
+#define N 14
+#define NUM_SOLUTIONS 36552
+int solutions[NUM_SOLUTIONS][N];
+int num_solutions = 0;
+
+// check if the position is safe or not
+int is_safe(int row, int col, int board[N][N])
+{
+    int i, j;
+    for (i = 0; i < row; i++)
+    {
+        if (board[i][col])
+        {
+            return 0;
+        }
+    }
+    for (i = row, j = col; i >= 0 && j >= 0; i--, j--)
+    {
+        if (board[i][j])
+        {
+            return 0;
+        }
+    }
+    for (i = row, j = col; i >= 0 && j < N; i--, j++)
+    {
+        if (board[i][j])
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// recursive function to solve N-Queens problem
+void solve_NQueens(int board[N][N], int row)
+{
+    int i;
+    if (row == N)
+    {
+        // solution found
+        #pragma omp critical
+        {
+            for (i = 0; i < N; i++)
+            {
+                solutions[num_solutions][i] = board[i][0];
+            }
+            num_solutions++;
+        }
+        return;
+    }
+    #pragma omp parallel for private(i)
+    for (i = 0; i < N; i++)
+    {
+        if (is_safe(row, i, board))
+        {
+            board[row][0] = i;
+            board[0][i] = 1;
+            solve_NQueens(board, row + 1);
+            board[row][0] = 0;
+            board[0][i] = 0;
+        }
+    }
+}
+
+
+int main()
+{
+    int board[N][N] = {0};
+    int i, j, k, num_threads;
+    struct timeval start, end;
+    double avg_time;
+    FILE *fp;
+
+    // open file for writing
+    fp = fopen("results.txt", "w");
+    if (fp == NULL)
+    {
+        printf("Error opening file!\n");
+        return 1;
+    }
+
+    // loop over number of threads
+    for (num_threads = 2; num_threads <= 16; num_threads+=2)
+    {
+        avg_time = 0;
+
+        // average over 5 runs
+        for (k = 0; k < 5; k++)
+        {
+            num_solutions = 0;
+
+            // set number of threads
+            omp_set_num_threads(num_threads);
+
+            // get start time
+            gettimeofday(&start, NULL);
+
+            // solve N-Queens problem
+            solve_NQueens(board, 0);
+
+            // get end time
+            gettimeofday(&end, NULL);
+
+            // calculate runtime
+            avg_time += (end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0);
+        }
+
+        // save average runtime to file
+        fprintf(fp, "Num threads: %d\tAvg time: %f\n", num_threads, avg_time / 5);
+    }
+
+  
+    // close file
+    fclose(fp);
+
+    return 0;
+}
